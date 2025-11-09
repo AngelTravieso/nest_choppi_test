@@ -9,6 +9,7 @@ import { UserModule } from './user/user.module';
 import { StoreModule } from './store/store.module';
 import { CommonModule } from './common/common.module';
 import { ProductModule } from './product/product.module';
+import { StoreProductsModule } from './store-products/store-product.module';
 
 @Module({
   imports: [
@@ -32,8 +33,9 @@ import { ProductModule } from './product/product.module';
     StoreModule,
     CommonModule,
     ProductModule,
+    StoreProductsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule { }
+export class AppModule {}

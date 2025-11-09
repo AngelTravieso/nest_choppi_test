@@ -1,12 +1,12 @@
-import { Store } from 'src/store/entities/store.entity';
+import { StoreProduct } from 'src/store-products/entities/store-product.entity';
 import { User } from 'src/user/entities/user.entity';
 import {
   Column,
   CreateDateColumn,
   DeleteDateColumn,
   Entity,
-  ManyToMany,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -27,6 +27,9 @@ export class Product {
 
   @ManyToOne(() => User, (user) => user.createdProducts, { nullable: false })
   creator: User;
+
+  @OneToMany(() => StoreProduct, (storeProduct) => storeProduct.product)
+  storeProducts: StoreProduct[];
 
   @CreateDateColumn()
   createdAt: Date;
