@@ -1,0 +1,1 @@
+type ValidatedUserPayload = Omit<User, 'password' | 'hashPassword'>;
