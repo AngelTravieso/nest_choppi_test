@@ -1,12 +1,16 @@
+import { CreateStoreDto } from 'src/common/dto/create-store.dto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
 import { Repository, Like, FindOptionsWhere } from 'typeorm';
 import { Store } from './entities/store.entity';
-import { User } from 'src/user/entities/user.entity';
-import { PaginationQueryDto } from 'src/common/dto/pagination-query.dto';
-import { CreateStoreDto } from 'src/common/dto/create-store.dto';
 import { UpdateStoreDto } from 'src/common/dto/update-store.dto';
 
+/**
+ * Servicio que encapsula la lógica de negocio para las Tiendas (Stores).
+ * Se asegura de que todas las operaciones estén aisladas
+ * al usuario que las solicita (usando userId).
+ */
 @Injectable()
 export class StoreService {
   constructor(
@@ -15,32 +19,33 @@ export class StoreService {
   ) {}
 
   /**
-   * Crea una nueva tienda asociada al usuario
+   * Crea una nueva tienda y la asocia con el ID del usuario.
+   * @param createStoreDto DTO con los datos de la tienda (nombre, dirección).
+   * @param userId ID del usuario autenticado.
+   * @returns La entidad de la tienda creada.
    */
-  async create(createStoreDto: CreateStoreDto, user: User): Promise<Store> {
+  async create(createStoreDto: CreateStoreDto, userId: number): Promise<Store> {
     const newStore = this.storeRepository.create({
       ...createStoreDto,
-      user: user, // Asocia al usuario
+      user: { id: userId }, // Asocia por ID
     });
     return this.storeRepository.save(newStore);
   }
-
   /**
-   * Busca todas las tiendas (paginadas) del usuario, con filtro de búsqueda
+   * Busca todas las tiendas (paginadas) que pertenecen a un usuario.
+   * Permite filtrar por un término de búsqueda 'q'.
+   * @param userId ID del usuario autenticado.
+   * @param paginationQuery DTO de paginación (page, limit, q).
+   * @returns Un objeto de paginación con { data, total, page, ... }.
    */
-  async findAll(user: User, paginationQuery: PaginationQueryDto) {
+  async findAll(userId: number, paginationQuery: PaginationQueryDto) {
     const { limit = 10, page = 1, q } = paginationQuery;
     const skip = (page - 1) * limit;
 
-    // Condición base: solo tiendas del usuario logueado
-    const where: FindOptionsWhere<Store> = {
-      user: { id: user.id },
+    const where: FindOptionsWhere<Store> | FindOptionsWhere<Store>[] = {
+      user: { id: userId },
+      ...(q && { name: Like(`%${q}%`) }),
     };
-
-    // Si hay un query 'q', añade búsqueda por nombre
-    if (q) {
-      where.name = Like(`%${q}%`); // Like es el 'ILIKE' de SQL
-    }
 
     const [data, total] = await this.storeRepository.findAndCount({
       where,
@@ -58,13 +63,18 @@ export class StoreService {
   }
 
   /**
-   * Busca una tienda específica por ID y que pertenezca al usuario
+   * Busca una tienda específica por ID, verificando que pertenezca al usuario.
+   * Este es un método clave de seguridad para todos los demás métodos (update, remove).
+   * @param id El ID de la tienda a buscar.
+   * @param userId El ID del usuario autenticado.
+   * @returns La entidad de la tienda.
+   * @throws {NotFoundException} Si la tienda no existe o no pertenece al usuario.
    */
-  async findOne(id: number, user: User): Promise<Store> {
+  async findOne(id: number, userId: number): Promise<Store> {
     const store = await this.storeRepository.findOne({
       where: {
         id: id,
-        user: { id: user.id },
+        user: { id: userId },
       },
     });
 
@@ -77,10 +87,14 @@ export class StoreService {
   }
 
   /**
-   * Actualiza una tienda si pertenece al usuario
+   * Actualiza una tienda, verificando primero la propiedad (ownership).
+   * @param id El ID de la tienda a actualizar.
+   * @param updateStoreDto DTO con los datos a actualizar.
+   * @param userId El ID del usuario autenticado.
+   * @returns La entidad de la tienda actualizada.
    */
-  async update(id: number, updateStoreDto: UpdateStoreDto, user: User) {
-    await this.findOne(id, user);
+  async update(id: number, updateStoreDto: UpdateStoreDto, userId: number) {
+    await this.findOne(id, userId);
 
     const result = await this.storeRepository.update(id, updateStoreDto);
 
@@ -88,15 +102,17 @@ export class StoreService {
       throw new NotFoundException(`Store with ID #${id} not found`);
     }
 
-    return this.findOne(id, user);
+    return this.findOne(id, userId);
   }
 
   /**
-   * Soft-Delete de una tienda si pertenece al usuario
+   * Realiza un Soft-Delete de una tienda, verificando primero la propiedad.
+   * @param id El ID de la tienda a eliminar.
+   * @param userId El ID del usuario autenticado.
+   * @returns Un mensaje de confirmación.
    */
-  async remove(id: number, user: User) {
-    // Primero, verifica que exista y pertenezca al usuario
-    await this.findOne(id, user);
+  async remove(id: number, userId: number) {
+    await this.findOne(id, userId);
 
     const result = await this.storeRepository.softDelete(id);
 
