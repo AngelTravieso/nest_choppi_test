@@ -9,7 +9,7 @@ import { UserModule } from './user/user.module';
 import { StoreModule } from './store/store.module';
 import { CommonModule } from './common/common.module';
 import { ProductModule } from './product/product.module';
-import { StoreProductsModule } from './store-products/store-product.module';
+import { StoreProductModule } from './store-products/store-product.module';
 
 @Module({
   imports: [
@@ -18,7 +18,7 @@ import { StoreProductsModule } from './store-products/store-product.module';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        type: 'postgres', // Usamos postgres
+        type: 'postgres',
         host: configService.get<string>('DB_HOST'),
         port: configService.get<number>('DB_PORT'),
         username: configService.get<string>('DB_USERNAME'),
@@ -33,7 +33,7 @@ import { StoreProductsModule } from './store-products/store-product.module';
     StoreModule,
     CommonModule,
     ProductModule,
-    StoreProductsModule,
+    StoreProductModule,
   ],
   controllers: [AppController],
   providers: [AppService],
