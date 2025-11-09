@@ -8,6 +8,7 @@ import { User } from './user/entities/user.entity';
 import { UserModule } from './user/user.module';
 import { StoreModule } from './store/store.module';
 import { CommonModule } from './common/common.module';
+import { ProductModule } from './product/product.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { CommonModule } from './common/common.module';
     UserModule,
     StoreModule,
     CommonModule,
+    ProductModule,
   ],
   controllers: [AppController],
   providers: [AppService],

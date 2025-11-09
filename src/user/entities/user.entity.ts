@@ -6,6 +6,7 @@ import {
 } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { Store } from 'src/store/entities/store.entity';
+import { Product } from 'src/product/entities/product.entity';
 
 export class User {
   @PrimaryGeneratedColumn()
@@ -17,6 +18,12 @@ export class User {
   @Column()
   password: string;
 
+  @OneToMany(() => Store, (store) => store.user)
+  stores: Store[];
+
+  @OneToMany(() => Product, (product) => product.creator)
+  createdProducts: Product[];
+
   @BeforeInsert()
   async hashPassword() {
     if (this.password) {
@@ -24,7 +31,4 @@ export class User {
       this.password = await bcrypt.hash(this.password, salt);
     }
   }
-
-  @OneToMany(() => Store, (store) => store.user)
-  stores: Store[];
 }
