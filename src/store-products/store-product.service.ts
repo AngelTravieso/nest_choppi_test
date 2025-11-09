@@ -4,14 +4,21 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Like } from 'typeorm';
+import { Repository } from 'typeorm';
 import { StoreProduct } from './entities/store-product.entity';
-import { AddProductToStoreDto } from './dto/add-product-to-store.dto';
-import { GetStoreProductsQueryDto } from './dto/get-store-products-query.dto';
-import { UpdateStoreProductDto } from './dto/update-store-product.dto';
+import {
+  AddProductToStoreDto,
+  GetStoreProductsQueryDto,
+  UpdateStoreProductDto,
+} from './dto';
 import { Store } from 'src/store/entities/store.entity';
 import { ProductService } from 'src/product/product.service';
 
+/**
+ * Servicio para gestionar el inventario de las tiendas.
+ * Encapsula la lógica de negocio para la entidad StoreProduct.
+ *
+ */
 @Injectable()
 export class StoreProductService {
   constructor(
@@ -23,7 +30,11 @@ export class StoreProductService {
   ) {}
 
   /**
-   * Helper: Verifica que una tienda exista y pertenezca al usuario.
+   * Helper de seguridad: Verifica que una tienda exista Y pertenezca al usuario.
+   * @param storeId El ID de la tienda a verificar.
+   * @param userId El ID del usuario autenticado.
+   * @returns La entidad de la Tienda si la validación es exitosa.
+   * @throws {NotFoundException} Si la tienda no existe o no pertenece al usuario.
    */
   private async getStoreForUser(
     storeId: number,
@@ -41,7 +52,8 @@ export class StoreProductService {
   }
 
   /**
-   * Añade un producto global al inventario de una tienda.
+   * Añade un producto del catálogo general al inventario de una tienda específica.
+   * Verifica la propiedad de la tienda y que el producto no esté ya añadido.
    */
   async addProductToStore(
     storeId: number,
@@ -49,11 +61,8 @@ export class StoreProductService {
     dto: AddProductToStoreDto,
   ) {
     const store = await this.getStoreForUser(storeId, userId);
+    const product = await this.productsService.findOne(dto.productId);
 
-    // 1. Verificar que el producto global exista
-    const product = await this.productsService.findOne(dto.productId); // Esto ya lanza NotFound si no existe
-
-    // 2. Verificar que no exista ya en la tienda
     const existingEntry = await this.spRepository.findOneBy({
       store: { id: storeId },
       product: { id: dto.productId },
@@ -62,7 +71,6 @@ export class StoreProductService {
       throw new BadRequestException('Product is already in this store');
     }
 
-    // 3. Crear la nueva entrada de inventario
     const newStoreProduct = this.spRepository.create({
       store: store,
       product: product,
@@ -75,21 +83,21 @@ export class StoreProductService {
 
   /**
    * Obtiene los productos del inventario de una tienda (paginado y filtrado).
+   * Verifica la propiedad de la tienda.
    */
   async getStoreProducts(
     storeId: number,
     userId: number,
     query: GetStoreProductsQueryDto,
   ) {
-    await this.getStoreForUser(storeId, userId); // Solo para verificar propiedad
+    await this.getStoreForUser(storeId, userId);
 
     const { limit = 10, page = 1, q, inStock } = query;
     const skip = (page - 1) * limit;
 
-    // Usamos QueryBuilder para hacer join y filtrar por el nombre del producto
     const qb = this.spRepository
       .createQueryBuilder('sp')
-      .innerJoinAndSelect('sp.product', 'product') // Carga la info del producto
+      .innerJoinAndSelect('sp.product', 'product')
       .where('sp.storeId = :storeId', { storeId });
 
     if (q) {
@@ -100,7 +108,7 @@ export class StoreProductService {
       qb.andWhere('sp.stock > 0');
     }
 
-    qb.take(limit).skip(skip);
+    qb.take(limit).skip(skip).orderBy('product.name', 'ASC');
 
     const [data, total] = await qb.getManyAndCount();
 
@@ -114,7 +122,8 @@ export class StoreProductService {
   }
 
   /**
-   * Actualiza precio/stock de un producto en una tienda.
+   * Actualiza el precio o stock de un item de inventario específico.
+   * Verifica la propiedad de la tienda Y que el item pertenezca a esa tienda.
    */
   async updateStoreProduct(
     storeProductId: number,
@@ -122,33 +131,7 @@ export class StoreProductService {
     userId: number,
     dto: UpdateStoreProductDto,
   ) {
-    await this.getStoreForUser(storeId, userId); // Verifica propiedad de la tienda
-
-    const storeProduct = await this.spRepository.findOneBy({
-      id: storeProductId,
-      store: { id: storeId }, // Asegura que el item pertenezca a la tienda
-    });
-
-    if (!storeProduct) {
-      throw new NotFoundException(
-        `StoreProduct with ID #${storeProductId} not found in this store`,
-      );
-    }
-
-    // Actualiza los campos (merge)
-    this.spRepository.merge(storeProduct, dto);
-    return this.spRepository.save(storeProduct);
-  }
-
-  /**
-   * Elimina un producto del inventario de una tienda.
-   */
-  async removeStoreProduct(
-    storeProductId: number,
-    storeId: number,
-    userId: number,
-  ) {
-    await this.getStoreForUser(storeId, userId); // Verifica propiedad
+    await this.getStoreForUser(storeId, userId);
 
     const storeProduct = await this.spRepository.findOneBy({
       id: storeProductId,
@@ -161,7 +144,32 @@ export class StoreProductService {
       );
     }
 
-    await this.spRepository.remove(storeProduct); // Hard delete de la entrada de inventario
+    this.spRepository.merge(storeProduct, dto);
+    return this.spRepository.save(storeProduct);
+  }
+
+  /**
+   * Elimina (Hard Delete) un item del inventario de una tienda.
+   * Verifica la propiedad de la tienda Y que el item pertenezca a esa tienda.
+   */
+  async removeStoreProduct(
+    storeProductId: number,
+    storeId: number,
+    userId: number,
+  ) {
+    await this.getStoreForUser(storeId, userId);
+    const storeProduct = await this.spRepository.findOneBy({
+      id: storeProductId,
+      store: { id: storeId },
+    });
+
+    if (!storeProduct) {
+      throw new NotFoundException(
+        `StoreProduct with ID #${storeProductId} not found in this store`,
+      );
+    }
+
+    await this.spRepository.remove(storeProduct);
     return { message: `StoreProduct #${storeProductId} removed from store` };
   }
 }
