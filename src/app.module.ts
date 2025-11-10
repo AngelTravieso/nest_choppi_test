@@ -14,6 +14,7 @@ import { StoreProductModule } from './store-products/store-product.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user/entities/user.entity';
 import { UserModule } from './user/user.module';
+import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { UserModule } from './user/user.module';
     CommonModule,
     ProductModule,
     StoreProductModule,
+    SeedModule,
   ],
   controllers: [AppController],
   providers: [AppService],
