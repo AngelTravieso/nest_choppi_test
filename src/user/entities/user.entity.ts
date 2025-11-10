@@ -1,6 +1,7 @@
 import {
   BeforeInsert,
   Column,
+  Entity,
   OneToMany,
   PrimaryGeneratedColumn,
 } from 'typeorm';
@@ -8,6 +9,7 @@ import * as bcrypt from 'bcrypt';
 import { Store } from 'src/store/entities/store.entity';
 import { Product } from 'src/product/entities/product.entity';
 
+@Entity()
 export class User {
   @PrimaryGeneratedColumn()
   id: number;
