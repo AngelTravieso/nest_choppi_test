@@ -1,19 +1,19 @@
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { CommonModule } from './common/common.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { LoggerMiddleware } from './common/middleware/logger.middleware';
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { Product } from './product/entities/product.entity';
+import { ProductModule } from './product/product.module';
+import { Store } from './store/entities/store.entity';
+import { StoreModule } from './store/store.module';
+import { StoreProduct } from './store-products/entities/store-product.entity';
+import { StoreProductModule } from './store-products/store-product.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user/entities/user.entity';
 import { UserModule } from './user/user.module';
-import { StoreModule } from './store/store.module';
-import { CommonModule } from './common/common.module';
-import { ProductModule } from './product/product.module';
-import { StoreProductModule } from './store-products/store-product.module';
-import { StoreProduct } from './store-products/entities/store-product.entity';
-import { Product } from './product/entities/product.entity';
-import { Store } from './store/entities/store.entity';
-import { LoggerMiddleware } from './common/middleware/logger.middleware';
 
 @Module({
   imports: [
